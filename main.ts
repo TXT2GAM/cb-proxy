@@ -54,6 +54,7 @@ const handleRequest = async (request: Request): Promise<Response> => {
 
     if (!response.ok) {
       const errorData = await response.text();
+      console.error(`CodeBuddy API Error: Status ${response.status}, Response: ${errorData}`);
       let errorMessage;
       try {
         const parsed = JSON.parse(errorData);
@@ -234,16 +235,51 @@ const collectStreamData = async (stream: ReadableStream<Uint8Array>) => {
 
 // 处理聊天消息格式
 const handleChatMessage = (messages: any[]) => {
+  // 先过滤和修复所有消息
+  const fixedMessages = [];
+
   for (const message of messages) {
-    if (message.content && typeof message.content === 'string') {
-      message.content = [{
-        type: 'text',
-        text: message.content
-      }];
+    // 跳过完全空的消息
+    if (!message || (!message.content && !message.role)) {
+      continue;
     }
+
+    const fixedMessage = { ...message };
+
+    if (message.content && typeof message.content === 'string') {
+      // 确保文本内容非空
+      const textContent = message.content.trim();
+      if (textContent) {
+        fixedMessage.content = [{
+          type: 'text',
+          text: textContent
+        }];
+      } else {
+        continue;
+      }
+    } else if (Array.isArray(message.content)) {
+      // 确保text字段非空
+      const validContent = message.content.filter(item =>
+        item && item.type === 'text' && item.text && item.text.trim()
+      ).map(item => ({
+        ...item,
+        text: item.text.trim()
+      }));
+
+      // 如果过滤后没有有效内容，跳过这个消息
+      if (validContent.length === 0) {
+        continue;
+      }
+      fixedMessage.content = validContent;
+    } else if (!message.content) {
+      continue;
+    }
+
+    fixedMessages.push(fixedMessage);
   }
 
-  if (messages.length === 1) {
+  // 如果只有一个消息且不是system消息，添加system消息
+  if (fixedMessages.length === 1 && fixedMessages[0].role !== 'system') {
     return [
       {
         role: 'system',
@@ -254,11 +290,11 @@ const handleChatMessage = (messages: any[]) => {
           }
         ]
       },
-      ...messages
+      ...fixedMessages
     ];
   }
 
-  return messages;
+  return fixedMessages;
 };
 
 // 模型列表
