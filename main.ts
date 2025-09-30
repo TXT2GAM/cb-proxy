@@ -300,12 +300,6 @@ const handleChatMessage = (messages: any[]) => {
 // 模型列表
 const models = [
   {
-    id: "claude-3.7",
-    object: "model",
-    created: 1677610602,
-    owned_by: "anthropic"
-  },
-  {
     id: "claude-4.0",
     object: "model",
     created: 1677610602,
