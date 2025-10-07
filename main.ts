@@ -3,6 +3,11 @@
  * 适用于 Deno Deploy 等云端平台部署
  */
 
+// 模型映射配置
+const modelMapping: Record<string, string> = {
+  "claude-4.0": "default-model"
+};
+
 /**
  * 处理聊天完成请求的核心函数
  * 根据请求路径判断 API 格式并进行相应转换
@@ -40,6 +45,10 @@ const handleRequest = async (request: Request): Promise<Response> => {
 
     const messages = handleChatMessage(body.messages);
 
+    // 应用模型映射
+    const originalModel = body.model;
+    const mappedModel = modelMapping[body.model] || body.model;
+
     // 向 CodeBuddy API 发送请求
     const response = await fetch('https://www.codebuddy.ai/v2/chat/completions', {
       method: 'POST',
@@ -49,7 +58,7 @@ const handleRequest = async (request: Request): Promise<Response> => {
         'User-Agent': 'CodeBuddyIDE/0.2.2',
         'Connection': 'close',
       },
-      body: JSON.stringify({ ...body, stream: true, messages })
+      body: JSON.stringify({ ...body, stream: true, messages, model: mappedModel })
     });
 
     if (!response.ok) {
